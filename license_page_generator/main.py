@@ -8,8 +8,9 @@ import typing
 import click
 
 from .github_repo import extract_license
-from .github_repo import extract_repo
+from .github_repo import extract_repo as extract_github_repo
 from .github_repo import RateLimitError
+from .npm import extract_repo as extract_npm_repo
 
 
 @click.command()
@@ -44,24 +45,33 @@ def main(input_file: str, input_encoding: str):
     sorted_names = sorted(list(packages.keys()))
     for name in sorted_names:
         pkg: typing.Dict = packages[name]
-        repo: typing.Optional[str] = extract_repo(pkg["repo"])
+        repo: typing.Optional[str] = extract_github_repo(pkg["repo"])
         if repo is None:
-            print(name, "=>", pkg)
-        else:
-            for _ in range(3):
-                try:
-                    license = extract_license(repo)
-                except RateLimitError as error:
-                    now = datetime.datetime.now()
-                    delta = error.reset_timestamp - now
-                    logger.warning(
-                        "Rate limited, sleep for %s seconds and try again",
-                        delta.total_seconds(),
-                    )
-                    time.sleep(delta.total_seconds())
-                    continue
+            logger.info("No repo name for %s pkg, extracting from npm ...", name)
+            repo = extract_npm_repo(name)
+            if repo is None:
+                logger.info("Cannot extract repo name from npm for %s", name)
+                print(name, "=>", pkg)
+                continue
+            else:
+                logger.info("Extracted repo name %s from npm for %s", repo, name)
+                repo = extract_github_repo(repo)
+        for _ in range(3):
+            try:
+                license = extract_license(repo)
+                logger.info("Extracted license %s from GitHub for %s", license, name)
+                break
+            except RateLimitError as error:
+                now = datetime.datetime.now()
+                delta = error.reset_timestamp - now
+                logger.warning(
+                    "Rate limited, sleep for %s seconds and try again",
+                    delta.total_seconds(),
+                )
+                time.sleep(delta.total_seconds())
+                continue
 
-            print(name, "=>", license)
+        print(name, "=>", license)
 
 
 if __name__ == "__main__":
