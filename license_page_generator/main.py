@@ -11,7 +11,7 @@ import click
 )
 def main(input_file: str, input_encoding: str):
     packages = collections.defaultdict(dict)
-    with open(input(), "rt", encoding=input_encoding) as fo:
+    with open(input_file, "rt", encoding=input_encoding) as fo:
         reader = csv.reader(fo)
         # Skip the header line
         next(reader)
