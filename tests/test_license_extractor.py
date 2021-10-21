@@ -10,7 +10,8 @@ from license_page_generator.license_extractor import License
         (
             "launchplatform/node-pkg-oss-license-page-generator",
             License(
-                type="MIT",
+                key="mit",
+                name="MIT License",
                 url_to_license="https://github.com/LaunchPlatform/node-pkg-oss-license-page-generator/blob/master/LICENSE",
             ),
         )
