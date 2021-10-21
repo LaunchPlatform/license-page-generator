@@ -1,7 +1,7 @@
 import pytest
 
-from license_page_generator.license_extractor import extract_repo_license
-from license_page_generator.license_extractor import License
+from license_page_generator.github_repo import extract_license
+from license_page_generator.github_repo import License
 
 
 @pytest.mark.parametrize(
@@ -17,5 +17,5 @@ from license_page_generator.license_extractor import License
         )
     ],
 )
-def test_extract_repo_license(repo: str, expected_license: License):
-    assert extract_repo_license(repo) == expected_license
+def test_extract_license(repo: str, expected_license: License):
+    assert extract_license(repo) == expected_license
