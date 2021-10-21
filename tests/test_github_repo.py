@@ -1,7 +1,7 @@
 import pytest
 
 from license_page_generator.github_repo import extract_license
-from license_page_generator.github_repo import extract_repo
+from license_page_generator.github_repo import extract_repo_from_url
 from license_page_generator.github_repo import License
 
 
@@ -20,7 +20,7 @@ from license_page_generator.github_repo import License
     ],
 )
 def test_extract_repo(repo_or_url: str, result: str):
-    assert extract_repo(repo_or_url) == result
+    assert extract_repo_from_url(repo_or_url) == result
 
 
 @pytest.mark.parametrize(

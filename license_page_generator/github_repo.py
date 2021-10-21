@@ -7,6 +7,8 @@ import urllib.parse
 import requests
 from requests.auth import HTTPBasicAuth
 
+from .http_cache import get_cache_session
+
 
 class RateLimitError(Exception):
     def __init__(self, reset_timestamp: datetime.datetime, msg: str):
@@ -21,7 +23,7 @@ class License:
     url_to_license: typing.Optional[str]
 
 
-def extract_repo(repo_or_url: str) -> typing.Optional[str]:
+def extract_repo_from_url(repo_or_url: str) -> typing.Optional[str]:
     """Extract repo "{owner}/{name}" from a given GitHub repo or url
 
     :param repo_or_url: repo or url to prase, or "(none)" means None
@@ -40,10 +42,11 @@ def extract_repo(repo_or_url: str) -> typing.Optional[str]:
 
 # Use GitHub license API
 # ref: https://docs.github.com/en/rest/reference/licenses
-def extract_license(repo: str) -> License:
+def extract_license(repo: str, use_cache: bool = False) -> License:
     """Extract license information for a given repo
 
     :param repo: name of repo, in "{owner}/{name}" format
+    :param use_cache: use http cache or not
     :return: the extracted License object
     """
     url = urllib.parse.urljoin("https://api.github.com/repos/", f"{repo}/license")
@@ -52,7 +55,12 @@ def extract_license(repo: str) -> License:
     github_token = os.environ.get("GITHUB_TOKEN")
     if github_user is not None and github_token is not None:
         auth = HTTPBasicAuth(username=github_user, password=github_token)
-    resp: requests.Response = requests.get(
+
+    session: requests.Session = requests.Session()
+    if use_cache:
+        session = get_cache_session()
+
+    resp: requests.Response = session.get(
         url, headers={"Accept": "application/vnd.github.v3+json"}, auth=auth
     )
     if resp.status_code == 404:

@@ -128,3 +128,4 @@ dmypy.json
 # Pyre type checker
 .pyre/
 .idea
+license_page_generator.http_cache
