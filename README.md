@@ -83,3 +83,11 @@ ansi-colors,MIT License,https://github.com/doowb/ansi-colors/blob/master/LICENSE
 ansi-cyan,MIT License,https://github.com/jonschlinkert/ansi-cyan/blob/master/LICENSE
 ansi-escapes,MIT License,https://github.com/sindresorhus/ansi-escapes/blob/main/license
 ```
+
+# Generate Markdown page
+
+To generate a markdown page, you can run command like this
+
+```bash
+poetry run python -m license_page_generator.gen_markdown output.csv
+```
