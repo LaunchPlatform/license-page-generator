@@ -4,7 +4,7 @@ from .main import read_output_file
 
 
 PROJECT_NAME = "license-page-generator"
-PROJECT_URL = "https://github.com/LaunchPlatform/node-pkg-oss-license-page-generator"
+PROJECT_URL = "https://github.com/LaunchPlatform/license-page-generator"
 
 
 @click.command()
