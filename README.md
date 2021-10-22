@@ -3,7 +3,7 @@ A simple Python command line tool for generating Open Source License page for no
 
 | :warning: DISCLAIMER                                                   |
 |:-----------------------------------------------------------------------|
-| This is just a tool we build at Launch Platform for helping ourselves making used package Open Source license page easier. We thought it might be useful to others so that we opened source it here. This is not a legal advice. For how you should distribute your software with open source license, please consult a lawyer. Also there's no guarantee of accuracy of this result from this tool, please use it at your own risk. |
+| This is just a tool we build at Launch Platform for helping ourselves making used package Open Source license page easier. We thought it might be useful to others so that we opened source it here. This is not a legal advice. For how you should distribute your software with open source license, please consult a lawyer. Also there's no guarantee of accuracy of the result from this tool, please use it at your own risk. |
 
 ## Usage
 
