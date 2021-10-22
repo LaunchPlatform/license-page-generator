@@ -41,11 +41,12 @@ def read_input_packages(
                 from_readme,
             ) = row[:8]
             packages[name]["repo"] = repo
-            licenses = filter(lambda l: len(l), [from_pkg, from_license, from_readme])
-            logger.debug("Get package %s licenses %s", name, licenses)
-            packages[name]["licenses"] = (
-                packages[name].get("licenses", set()).union(set(licenses))
+            licenses = list(
+                filter(lambda l: len(l.strip()), [from_pkg, from_license, from_readme])
             )
+            logger.debug("Get package %s licenses %s", name, licenses)
+            if licenses:
+                packages[name].setdefault("licenses", licenses)
     return packages
 
 
@@ -101,6 +102,7 @@ def main(
                 logger.info("Skip finished pkg %s", name)
                 continue
             pkg: typing.Dict = packages[name]
+            first_input_license = pkg.get("licenses", [""])[0]
             repo: typing.Optional[str] = extract_repo_from_url(pkg["repo"])
             if repo is None:
                 logger.info(
@@ -119,11 +121,8 @@ def main(
                     sys.exit(1)
                 if repo is None:
                     logger.info("Cannot extract repo name from npm for %s", name)
-                    # TODO: ideally should check if they match and find best fit here,
-                    #       like choosing between GPL and MIT
-                    first_license = sorted(list(pkg["licenses"]))[0]
                     writer.writerow(
-                        dict(name=name, license=first_license, license_url="")
+                        dict(name=name, license=first_input_license, license_url="")
                     )
                     out_fo.flush()
                     continue
@@ -140,7 +139,10 @@ def main(
                 try:
                     license = extract_license(repo, use_cache=use_cache)
                     logger.info(
-                        "Extracted license %s from GitHub for %s", license, name
+                        "Extracted license %s from GitHub repo %s for %s",
+                        license,
+                        repo,
+                        name,
                     )
                     break
                 except RateLimitError as error:
@@ -157,7 +159,9 @@ def main(
                 raise RuntimeError("Failed to get github repo, please try again later")
             writer.writerow(
                 dict(
-                    name=name, license=license.name, license_url=license.url_to_license
+                    name=name,
+                    license=license.name or first_input_license,
+                    license_url=license.url_to_license,
                 )
             )
             out_fo.flush()

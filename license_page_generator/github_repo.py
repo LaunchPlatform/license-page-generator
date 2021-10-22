@@ -10,6 +10,9 @@ from requests.auth import HTTPBasicAuth
 from .http_cache import get_cache_session
 
 
+GITHUB_SSH_REPO_PREFIX = "git@github.com:"
+
+
 class RateLimitError(Exception):
     def __init__(self, reset_timestamp: datetime.datetime, msg: str):
         super().__init__(msg)
@@ -31,6 +34,8 @@ def extract_repo_from_url(repo_or_url: str) -> typing.Optional[str]:
     """
     if repo_or_url == "(none)":
         return None
+    if repo_or_url.startswith(GITHUB_SSH_REPO_PREFIX):
+        return repo_or_url.removeprefix(GITHUB_SSH_REPO_PREFIX)
     parsed = urllib.parse.urlparse(repo_or_url)
     if parsed.scheme is None:
         return repo_or_url
