@@ -91,3 +91,17 @@ To generate a markdown page, you can run command like this
 ```bash
 poetry run python -m license_page_generator.gen_markdown output.csv
 ```
+
+# Tests
+
+To run tests, install dev dependencies first by
+
+```bash
+poetry install --dev
+```
+
+then
+
+```bash
+poetry run python -m pytest ./tests/ -svvv
+```
