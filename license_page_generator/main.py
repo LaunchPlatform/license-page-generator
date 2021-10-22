@@ -2,6 +2,8 @@ import collections
 import csv
 import datetime
 import logging
+import os
+import sys
 import time
 import typing
 
@@ -14,34 +16,17 @@ from .github_repo import RateLimitError
 from .npm import BlockedError
 from .npm import extract_repo as extract_npm_repo
 
+OUTPUT_FIELDS = ["name", "license", "license_url"]
 
-@click.command()
-@click.argument("INPUT_FILE", type=click.Path(exists=True))
-@click.option(
-    "--input-encoding", default="utf16", type=str, help="Input file encoding."
-)
-@click.option(
-    "-d",
-    "--disable-cache",
-    is_flag=True,
-    help="Disable HTTP request cache.",
-)
-@click.option(
-    "-s",
-    "--suppress-retry-failure",
-    is_flag=False,
-    help="Suppress retry failures.",
-)
-def main(
+
+def read_input_packages(
     input_file: str,
     input_encoding: str,
-    disable_cache: bool,
-    suppress_retry_failure: bool,
 ):
     logger = logging.getLogger(__name__)
     packages = collections.defaultdict(dict)
-    with open(input_file, "rt", encoding=input_encoding) as fo:
-        reader = csv.reader(fo)
+    with open(input_file, "rt", encoding=input_encoding) as in_fo:
+        reader = csv.reader(in_fo)
         # Skip the header line
         next(reader)
         for row in reader:
@@ -61,59 +46,121 @@ def main(
             packages[name]["licenses"] = (
                 packages[name].get("licenses", set()).union(set(licenses))
             )
+    return packages
+
+
+def read_output_file(output_file: str) -> typing.Dict:
+    with open(output_file, "rt", encoding="utf8") as fo:
+        reader = csv.DictReader(fo, fieldnames=OUTPUT_FIELDS)
+        next(reader)
+        return {row["name"]: row for row in reader}
+
+
+@click.command()
+@click.argument("INPUT_FILE", type=click.Path(exists=True))
+@click.argument("OUTPUT_FILE", type=click.Path())
+@click.option(
+    "--input-encoding", default="utf16", type=str, help="Input file encoding."
+)
+@click.option(
+    "-d",
+    "--disable-cache",
+    is_flag=True,
+    help="Disable HTTP request cache.",
+)
+@click.option(
+    "--npm-sleep-time", default=10, type=int, help="Sleep time between npm fetch req."
+)
+def main(
+    input_file: str,
+    output_file: str,
+    input_encoding: str,
+    disable_cache: bool,
+    npm_sleep_time: int,
+):
+    logger = logging.getLogger(__name__)
+
+    finished_pkgs: typing.Dict = {}
+    if os.path.exists(output_file):
+        finished_pkgs = read_output_file(output_file)
+
+    packages = read_input_packages(input_file, input_encoding)
     sorted_names = sorted(list(packages.keys()))
     use_cache = not disable_cache
-    for name in sorted_names:
-        pkg: typing.Dict = packages[name]
-        repo: typing.Optional[str] = extract_repo_from_url(pkg["repo"])
-        if repo is None:
-            logger.info(
-                "No repo name for %s pkg, extracting from npm, use_cache=%s",
-                name,
-                use_cache,
-            )
 
-            for retry_count in range(3):
+    with open(output_file, "w") as out_fo:
+        # Write finished pkgs to output file
+        writer = csv.DictWriter(out_fo, fieldnames=OUTPUT_FIELDS)
+        writer.writeheader()
+        finished_pkgs_names = sorted(list(finished_pkgs.keys()))
+        for name in finished_pkgs_names:
+            writer.writerow(finished_pkgs[name])
+        out_fo.flush()
+        for name in sorted_names:
+            if name in finished_pkgs:
+                logger.info("Skip finished pkg %s", name)
+                continue
+            pkg: typing.Dict = packages[name]
+            repo: typing.Optional[str] = extract_repo_from_url(pkg["repo"])
+            if repo is None:
+                logger.info(
+                    "No repo name for %s pkg, extracting from npm, use_cache=%s",
+                    name,
+                    use_cache,
+                )
+
                 try:
                     repo = extract_npm_repo(name, use_cache=use_cache)
-                    break
                 except BlockedError:
                     logger.warning(
-                        "Blocked by cloudflare, sleep for a while and try again later"
+                        "Blocked by cloudflare for fetching NPM page, please increase npm "
+                        "sleep time or try again later"
                     )
-                    time.sleep(60)
+                    sys.exit(1)
+                if repo is None:
+                    logger.info("Cannot extract repo name from npm for %s", name)
+                    # TODO: ideally should check if they match and find best fit here,
+                    #       like choosing between GPL and MIT
+                    first_license = sorted(list(pkg["licenses"]))[0]
+                    writer.writerow(
+                        dict(name=name, license=first_license, license_url="")
+                    )
+                    out_fo.flush()
                     continue
-            if repo is None:
-                if retry_count == 3 and not suppress_retry_failure:
-                    raise RuntimeError("Failed to get npm repo")
-                logger.info("Cannot extract repo name from npm for %s", name)
-                print(name, "=>", pkg)
-                continue
-            else:
-                logger.info("Extracted repo name %s from npm for %s", repo, name)
-                repo = extract_repo_from_url(repo)
-        logger.info(
-            "Extracting license from GitHub for %s, use_cache=%s", name, use_cache
-        )
-        license: typing.Optional[License] = None
-        for retry_count in range(3):
-            try:
-                license = extract_license(repo, use_cache=use_cache)
-                logger.info("Extracted license %s from GitHub for %s", license, name)
-                break
-            except RateLimitError as error:
-                now = datetime.datetime.now()
-                delta = error.reset_timestamp - now
-                logger.warning(
-                    "Rate limited, sleep for %s seconds and try again",
-                    delta.total_seconds(),
-                )
-                time.sleep(delta.total_seconds())
-                continue
+                else:
+                    logger.info("Extracted repo name %s from npm for %s", repo, name)
+                    repo = extract_repo_from_url(repo)
+                # Sleep a while for npm to avoid blocking
+                time.sleep(npm_sleep_time)
+            logger.info(
+                "Extracting license from GitHub for %s, use_cache=%s", name, use_cache
+            )
+            license: typing.Optional[License] = None
+            for retry_count in range(3):
+                try:
+                    license = extract_license(repo, use_cache=use_cache)
+                    logger.info(
+                        "Extracted license %s from GitHub for %s", license, name
+                    )
+                    break
+                except RateLimitError as error:
+                    now = datetime.datetime.now()
+                    delta = error.reset_timestamp - now
+                    logger.warning(
+                        "Rate limited, sleep for %s seconds and try again",
+                        delta.total_seconds(),
+                    )
+                    time.sleep(delta.total_seconds())
+                    continue
 
-        if retry_count == 3 and not suppress_retry_failure:
-            raise RuntimeError("Failed to get github repo")
-        print(name, "=>", license)
+            if retry_count == 3:
+                raise RuntimeError("Failed to get github repo, please try again later")
+            writer.writerow(
+                dict(
+                    name=name, license=license.name, license_url=license.url_to_license
+                )
+            )
+            out_fo.flush()
 
 
 if __name__ == "__main__":
