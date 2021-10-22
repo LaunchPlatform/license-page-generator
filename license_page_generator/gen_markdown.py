@@ -29,10 +29,9 @@ def main(input_file: str, default_license_url: str, no_attribution: bool):
         row = packages[name]
         license = row["license"]
         license_url = row.get("license_url", None)
-        print(f"## {name}")
         if license_url is None or not license_url.strip():
             license_url = default_license_url.format(pkg_name=name)
-        print(f"License: [{license}]({license_url})")
+        print(f"- {name}: [{license}]({license_url})")
         print()
 
     if not no_attribution:

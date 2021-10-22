@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "node-pkg-oss-license-page-generator"
+name = "license-page-generator"
 version = "0.1.0"
 description = ""
 authors = ["Fang-Pen Lin <fangpen@launchplatform.com>"]
