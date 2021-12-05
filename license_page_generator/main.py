@@ -158,10 +158,8 @@ def main(
             if retry_count == 3:
                 raise RuntimeError("Failed to get github repo, please try again later")
             license_name = license.name
-            if license_name == "Other":
-                license_name = first_input_license
-            if not license_name:
-                license_name = "Other"
+            if not license_name or license_name == "Other":
+                license_name = first_input_license or "Other"
             writer.writerow(
                 dict(
                     name=name,
